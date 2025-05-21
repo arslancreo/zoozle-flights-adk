@@ -3,7 +3,7 @@
         "source_city": "LKO",
         "destination_city": "BOM",
         "departure_date": "2025-05-25",
-        "return_date": "2025-05-30",
+        "return_date": null,
         "number_of_adults": 5,
         "number_of_children": 2,
         "number_of_infants": 0
