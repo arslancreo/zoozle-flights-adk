@@ -15,7 +15,7 @@ def get_cities(city: str):
             "collection": "airports",
             "q": city,
             "page": 1,
-            "per_page": 5
+            "per_page": 3,
         }
             ]
         },  headers={
