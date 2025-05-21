@@ -1,11 +1,11 @@
 {
     "state": {
-        "source_city": "LKO",
-        "destination_city": "BOM",
-        "departure_date": "2025-05-25",
-        "return_date": null,
-        "number_of_adults": 5,
-        "number_of_children": 2,
+        "source_city": "",
+        "destination_city": "",
+        "departure_date": "",
+        "return_date": "",
+        "number_of_adults": 0,
+        "number_of_children": 0,
         "number_of_infants": 0
     }
 }

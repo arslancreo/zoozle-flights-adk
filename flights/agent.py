@@ -7,7 +7,7 @@ from google.adk.tools.agent_tool import AgentTool
 from pydantic import BaseModel, Field
 import requests
 
-from flights.constants import GEMINI_MODEL
+from flights.constants import GEMINI_MODEL, GEMINI_MODEL_2
 from flights.memory import _load_precreated_itinerary, memorize
 from flights.search_flight_tools import get_cities, search_flights_tool
 
@@ -17,7 +17,7 @@ from flights.search_flight_tools import get_cities, search_flights_tool
 
 source_agent = Agent(
     name="SourceAgent",
-    model=GEMINI_MODEL,
+    model=GEMINI_MODEL_2,
     instruction="""
 
 You will be given the source city where the user wants to travel from.
@@ -36,7 +36,7 @@ source_tool = AgentTool(agent=source_agent)
 
 destination_agent = Agent(
     name="DestinationAgent",
-    model=GEMINI_MODEL,
+    model=GEMINI_MODEL_2,
     instruction="""
 
 You will be given the destination city where the user wants to travel to.
@@ -55,7 +55,7 @@ destination_tool = AgentTool(agent=destination_agent)
 
 number_of_passengers_agent = Agent(
     name="NumberOfPassengersAgent",
-    model=GEMINI_MODEL,
+    model=GEMINI_MODEL_2,
     instruction="""
 Step 1:
 Ask the user the number of adults that are willing to travel.
@@ -88,7 +88,7 @@ number_of_passengers_tool = AgentTool(agent=number_of_passengers_agent)
 
 search_flights_agent = Agent(
     name="SearchFlightsAgent",
-    model=GEMINI_MODEL,
+    model=GEMINI_MODEL_2,
     instruction="""
 You are a helpful agent who can search flights for the user.
 use the search_flights_tool to search for flights between the given origin and destination on the given departure and you might also get return date. this will take upto 10 minutes to complete.
@@ -109,6 +109,11 @@ root_agent = Agent(
     instruction="""
 You are a helpful agent who can search flights for the user.
 
+<today_datetime>
+{today_datetime}
+</today_datetime>
+
+Use today_datetime to calculate the departure and return dates if user tells relative dates.
 
 Step 1:
 Begin by asking the user the source city they want to fly from.
@@ -181,6 +186,4 @@ then use the search_flights_agent_tool to search for flights between the given o
 </number_of_infants>
 """,
     tools=[source_tool, destination_tool,  search_flights_agent_tool, memorize],
-    
-    before_agent_callback=_load_precreated_itinerary
 )

@@ -1,0 +1,201 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dental Receptionist Chat</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #chat-container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        #message-input {
+            width: 70%;
+            padding: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user-message {
+            background-color: #e3f2fd;
+            margin-left: 20%;
+        }
+        .agent-message {
+            background-color: #f5f5f5;
+            margin-right: 20%;
+        }
+        #auth-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="auth-container">
+        <button id="login-button">Sign in with Google</button>
+    </div>
+
+    <div id="chat-interface" class="hidden">
+        <div id="chat-container"></div>
+        <div>
+            <input type="text" id="message-input" placeholder="Type your message...">
+            <button id="send-button">Send</button>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Supabase client
+        const HOST_URL = config.HOST_URL
+        const supabaseUrl = 'https://qfforovsnvhgmzylsxzx.supabase.co'
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZm9yb3ZzbnZoZ216eWxzeHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDczMjIzMTksImV4cCI6MjA2Mjg5ODMxOX0.xkLdSq4WQQm6HIykzz-Ck_fF7ZNnSnwa3tvXlReaA9M'
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey)
+
+        // DOM elements
+        const loginButton = document.getElementById('login-button')
+        const authContainer = document.getElementById('auth-container')
+        const chatInterface = document.getElementById('chat-interface')
+        const chatContainer = document.getElementById('chat-container')
+        const messageInput = document.getElementById('message-input')
+        const sendButton = document.getElementById('send-button')
+
+        let ws = null
+        let sessionId = null
+
+        // Google Sign In
+        loginButton.addEventListener('click', async () => {
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: "https://dockrec.zoozle.dev/",
+                        queryParams: {
+                            access_type: 'offline',
+                            prompt: 'consent',
+                        }
+                    }
+                })
+                if (error) throw error
+                console.log('OAuth response:', data)
+            } catch (error) {
+                console.error('Error signing in:', error.message)
+            }
+        })
+
+        // Check for existing session
+        async function checkSession() {
+            try {
+                const { data: { session }, error } = await supabaseClient.auth.getSession()
+                if (error) throw error
+                if (session) {
+                    console.log('Found existing session:', session)
+                    handleAuthenticated(session)
+                }
+            } catch (error) {
+                console.error('Error checking session:', error.message)
+            }
+        }
+
+        // Handle successful authentication
+        function handleAuthenticated(session) {
+            authContainer.classList.add('hidden')
+            chatInterface.classList.remove('hidden')
+            sessionId = crypto.randomUUID()
+            connectWebSocket(session.access_token)
+        }
+
+        // WebSocket connection
+        function connectWebSocket(token) {
+            const wsUrl = `${HOST_URL.replace('http', 'ws')}ws/${sessionId}?authorization=${encodeURIComponent(token)}`
+            ws = new WebSocket(wsUrl)
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected')
+            }
+
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data)
+                displayMessage(message, 'agent')
+            }
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected')
+            }
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error)
+            }
+        }
+
+        // Send message
+        function sendMessage() {
+            const message = messageInput.value.trim()
+            if (message && ws) {
+                ws.send(JSON.stringify({
+                    type: 'message',
+                    content: message
+                }))
+                displayMessage({ content: message }, 'user')
+                messageInput.value = ''
+            }
+        }
+
+        // Display message in chat
+        function displayMessage(message, sender) {
+            const messageDiv = document.createElement('div')
+            messageDiv.className = `message ${sender}-message`
+            messageDiv.textContent = message.content || message.message || JSON.stringify(message)
+            chatContainer.appendChild(messageDiv)
+            chatContainer.scrollTop = chatContainer.scrollHeight
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage)
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage()
+            }
+        })
+
+        // Check for session on page load
+        checkSession()
+
+        // Listen for auth state changes
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                handleAuthenticated(session)
+            } else if (event === 'SIGNED_OUT') {
+                authContainer.classList.remove('hidden')
+                chatInterface.classList.add('hidden')
+                if (ws) {
+                    ws.close()
+                }
+            }
+        })
+    </script>
+</body>
+</html> 

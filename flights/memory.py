@@ -25,6 +25,7 @@ from google.adk.sessions.state import State
 from google.adk.tools import ToolContext
 
 from flights import constants
+from flights.custom_session import CustomSession
 
 SAMPLE_SCENARIO_PATH = os.getenv(
     "PREFERENCES", "flights/preferences.json"
@@ -65,6 +66,13 @@ def memorize(key: str, value: str, tool_context: ToolContext):
     """
     mem_dict = tool_context.state
     mem_dict[key] = value.strip()
+    session = tool_context._invocation_context.session
+    
+    if isinstance(session, CustomSession):
+        session.update_state()
+
+    raise Exception("Not implemented")
+
     return {"status": f'Stored "{key}": "{value}"'}
 
 def get_state(key: str, tool_context: ToolContext):
@@ -108,6 +116,8 @@ def _set_initial_states(source: Dict[str, Any], target: State | dict[str, Any]):
     target["number_of_adults"] = target.get("number_of_adults") or source.get("number_of_adults", "")
     target["number_of_children"] = target.get("number_of_children") or source.get("number_of_children", "")
     target["number_of_infants"] = target.get("number_of_infants") or source.get("number_of_infants", "")
+
+    
 
 
 
