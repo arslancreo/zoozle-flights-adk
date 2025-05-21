@@ -104,6 +104,7 @@ def _set_initial_states(source: Dict[str, Any], target: State | dict[str, Any]):
     target["source_city"] = target.get("source_city") or source.get("source_city", "")
     target["destination_city"] = target.get("destination_city") or source.get("destination_city", "")
     target["departure_date"] = target.get("departure_date") or source.get("departure_date", "")
+    target["return_date"] = target.get("return_date") or source.get("return_date", "")
     target["number_of_adults"] = target.get("number_of_adults") or source.get("number_of_adults", "")
     target["number_of_children"] = target.get("number_of_children") or source.get("number_of_children", "")
     target["number_of_infants"] = target.get("number_of_infants") or source.get("number_of_infants", "")

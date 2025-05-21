@@ -9,31 +9,10 @@ import requests
 
 from flights.constants import GEMINI_MODEL
 from flights.memory import _load_precreated_itinerary, memorize
-
-load_dotenv() 
-
-typesense_key = os.getenv("TYPESENSE_KEY")
+from flights.search_flight_tools import get_cities, search_flights_tool
 
 
-def get_cities(city: str): 
-    response = requests.post("https://search.zoozle.dev/multi_search/", json= {
-    "searches": [
-          {
-            "query_by": "search_terms",
-            "num_typos": 1,
-            "collection": "airports",
-            "q": city,
-            "page": 1,
-            "per_page": 5
-        }
-            ]
-        },  headers={
-        "x-typesense-api-key":  typesense_key,
-        "Content-Type": "application/json"
-    })
-    print(response, "*********************************************")
-    data = response.json()
-    return data
+
     
 
 source_agent = Agent(
@@ -107,6 +86,20 @@ tools=[memorize]
 
 number_of_passengers_tool = AgentTool(agent=number_of_passengers_agent)
 
+search_flights_agent = Agent(
+    name="SearchFlightsAgent",
+    model=GEMINI_MODEL,
+    instruction="""
+You are a helpful agent who can search flights for the user.
+use the search_flights_tool to search for flights between the given origin and destination on the given departure and return dates. this will take upto 10 minutes to complete.
+
+""",
+ tools=[search_flights_tool]
+)
+
+search_flights_agent_tool = AgentTool(agent=search_flights_agent)
+
+
 root_agent = Agent(
     name="SearchFlights",
     model=GEMINI_MODEL,
@@ -115,6 +108,7 @@ root_agent = Agent(
     ),
     instruction="""
 You are a helpful agent who can search flights for the user.
+
 
 Step 1:
 Begin by asking the user the source city they want to fly from.
@@ -132,22 +126,48 @@ For Example:
 21 May should be stored as
 2025-05-21
 
+Step 4:
+Then ask the user if they want to return back to the source city
+if yes, then ask the user the return date
+As the date is provided store it in ISO format in return_date variable using memorize tool
+if no, then store the value in return_date variable as empty string
+REMEMBER return_date is optional
 
-Step 4
+For Example:
+21 May should be stored as
+2025-05-21
+
+
+Step 5:
 Then ask the user the number of adults that are going to travel
 store the the value in number_of_adults variable as integer using memorize tool
 
-Step 5
+Step 6:
 Then ask the user the number of children that are going to travel
 store the the value in number_of_children variable as integer using memorize tool
 
-Step 6
+Step 7:
 Then ask the user the number of infants that are going to travel
 store the the value in number_of_infants as integer variable using memorize tool
+
+Step 8:
+then use the search_flights_agent_tool to search for flights between the given origin and destination on the given departure and return dates. this will take upto 20 seconds to complete.
+
+<source_city>
+{source_city}
+</source_city>
+
+<destination_city>
+{destination_city}
+</destination_city>
 
 <departure_date>
 {departure_date}
 </departure_date>
+
+<return_date>
+{return_date}
+</return_date>
 
 <number_of_adults>
 {number_of_adults}
@@ -161,6 +181,7 @@ store the the value in number_of_infants as integer variable using memorize tool
 {number_of_infants}
 </number_of_infants>
 """,
-    tools=[source_tool, destination_tool, memorize],
+    tools=[source_tool, destination_tool,  search_flights_agent_tool, memorize],
+    
     before_agent_callback=_load_precreated_itinerary
 )
