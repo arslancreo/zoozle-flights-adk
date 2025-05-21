@@ -18,7 +18,7 @@ from datetime import datetime
 import json
 import os
 import time
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 from google.adk.agents.callback_context import CallbackContext
 from google.adk.sessions.state import State
@@ -30,26 +30,6 @@ from flights.custom_session import CustomSession
 SAMPLE_SCENARIO_PATH = os.getenv(
     "PREFERENCES", "flights/preferences.json"
 )
-
-
-def memorize_list(key: str, value: str, tool_context: ToolContext):
-    """
-    Memorize pieces of information.
-
-    Args:
-        key: the label indexing the memory to store the value.
-        value: the information to be stored.
-        tool_context: The ADK tool context.
-
-    Returns:
-        A status message.
-    """
-    mem_dict = tool_context.state
-    if key not in mem_dict:
-        mem_dict[key] = []
-    if value not in mem_dict[key]:
-        mem_dict[key].append(value)
-    return {"status": f'Stored "{key}": "{value}"'}
 
 
 def memorize(key: str, value: str, tool_context: ToolContext):
@@ -70,8 +50,6 @@ def memorize(key: str, value: str, tool_context: ToolContext):
     
     if isinstance(session, CustomSession):
         session.update_state()
-
-    raise Exception("Not implemented")
 
     return {"status": f'Stored "{key}": "{value}"'}
 
@@ -109,8 +87,8 @@ def _set_initial_states(source: Dict[str, Any], target: State | dict[str, Any]):
 
 
     
-    target["source_city"] = target.get("source_city") or source.get("source_city", "")
-    target["destination_city"] = target.get("destination_city") or source.get("destination_city", "")
+    target["source_city_code"] = target.get("source_city_code") or source.get("source_city_code", "")
+    target["destination_city_code"] = target.get("destination_city_code") or source.get("destination_city_code", "")
     target["departure_date"] = target.get("departure_date") or source.get("departure_date", "")
     target["return_date"] = target.get("return_date") or source.get("return_date", "")
     target["number_of_adults"] = target.get("number_of_adults") or source.get("number_of_adults", "")

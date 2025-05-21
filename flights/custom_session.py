@@ -8,8 +8,8 @@ import pytz
 IST = pytz.timezone("Asia/Kolkata")
 
 class UserPreferences(TypedDict):
-    source_city: Optional[str]
-    destination_city: Optional[str]
+    source_city_code: Optional[str]
+    destination_city_code: Optional[str]
     departure_date: Optional[str]
     return_date: Optional[str]
     number_of_adults: Optional[int]
@@ -28,8 +28,8 @@ class CustomSession(Session):
         self._preference_changed = asyncio.Event()
 
         self._last_preferences: UserPreferences = {
-            "source_city": None,
-            "destination_city": None,
+            "source_city_code": None,
+            "destination_city_code": None,
             "departure_date": None,
             "return_date": None,
             "number_of_adults": None,
@@ -46,8 +46,8 @@ class CustomSession(Session):
         """
 
         return {
-            "source_city": self.state.get("source_city"),
-            "destination_city": self.state.get("destination_city"),
+            "source_city_code": self.state.get("source_city_code"),
+            "destination_city_code": self.state.get("destination_city_code"),
             "departure_date": self.state.get("departure_date"),
             "return_date": self.state.get("return_date"),
             "number_of_adults": self.state.get("number_of_adults"),

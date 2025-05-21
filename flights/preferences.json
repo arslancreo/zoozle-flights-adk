@@ -1,7 +1,7 @@
 {
     "state": {
-        "source_city": "",
-        "destination_city": "",
+        "source_city_code": "",
+        "destination_city_code": "",
         "departure_date": "",
         "return_date": "",
         "number_of_adults": 0,

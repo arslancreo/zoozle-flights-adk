@@ -7,6 +7,14 @@ load_dotenv()
 typesense_key = os.getenv("TYPESENSE_KEY")
 
 def get_cities(city: str): 
+    """
+    This tool is used to get the cities from the typesense database.
+    Args:
+        city: The city to search for.
+    Returns:
+        A list of cities.
+    """
+
     response = requests.post("https://search.zoozle.dev/multi_search/", json= {
     "searches": [
           {
@@ -22,31 +30,25 @@ def get_cities(city: str):
         "x-typesense-api-key":  typesense_key,
         "Content-Type": "application/json"
     })
-    print(response, "*********************************************")
+
     data = response.json()
     return data
 
-def search_flights_tool(tool_context: ToolContext = None):
+def _build_payload(tool_context: ToolContext):
     """
-    Search for flights between the given origin and destination on the given departure and return dates. this will take upto 1minute to complete.
-
-    Args:
-        tool_context: Automatically provided by ADK. do not specify when calling.
-
-    Returns:
-        List of flight options
+    Build the payload for the search flights tool.
     """
 
-    origin = tool_context.state.get("source_city")
-    destination = tool_context.state.get("destination_city")
+    origin = tool_context.state.get("source_city_code")
+    destination = tool_context.state.get("destination_city_code")
     departure_date = tool_context.state.get("departure_date")
     return_date = tool_context.state.get("return_date")
-    return_date = None if return_date is "" else return_date
+    return_date = return_date if return_date else None
     adults = int(tool_context.state.get("number_of_adults"))
-    children = int(tool_context.state.get("number_of_children"))
-    infants = int(tool_context.state.get("number_of_infants"))
+    children = int(tool_context.state.get("number_of_children") or 0)
+    infants = int(tool_context.state.get("number_of_infants") or 0)
 
-    print(adults, children, infants, "*********************************************")
+    print(origin, destination, departure_date, return_date, adults, children, infants, "--------------------------------------------------")
 
     # Construct the search request payload
     payload = {
@@ -67,7 +69,7 @@ def search_flights_tool(tool_context: ToolContext = None):
                     "PreferenceLevel": "Preferred"
                 }
             },
-            "AirTripType": "OneWay" if return_date is None or return_date is "" else "Return",
+            "AirTripType": "OneWay" if return_date is None else "Return",
             "Filters": {}
         },
         "PricingSourceType": "All",
@@ -101,16 +103,43 @@ def search_flights_tool(tool_context: ToolContext = None):
         })
 
     # Add return flight if specified
-    if return_date is not None and return_date is not "":
+    if return_date is not None and not return_date:
         payload["OriginDestinationInformations"].append({
             "DepartureDateTime": f"{return_date}T00:00:00",
             "OriginLocationCode": destination,
             "DestinationLocationCode": origin
         })
+    
+    return payload
+
+
+def search_flights_tool(tool_context: ToolContext = None):
+    """
+    Search for flights between the given origin and destination on the given departure and return dates. this will take upto 1minute to complete.
+
+    Args:
+        tool_context: Automatically provided by ADK. do not specify when calling.
+
+    Returns:
+        Dict[str, str]: A dictionary of key-value pairs.
+            -status: A status message.
+            -no_of_flights: The number of flights found.
+            -lowest_price_trip: The lowest price trip. 
+                -here for price you have to check AirItineraryPricingInfo.ItinTotalFare.TotalPriceAfterDiscount.Amount (in INR)
+
+    """
+
+    if not tool_context.state.get("source_city_code") or not tool_context.state.get("destination_city_code") or not tool_context.state.get("departure_date") or not tool_context.state.get("number_of_adults"):
+        return {
+            "status": "error",
+            "message": "Please provide atleast the source city code, destination city code, departure date and number of adults"
+        }
+
+    payload = _build_payload(tool_context)
 
     # Make the API request
     response = requests.post(
-        'https://zoozle.dev/api/v5/booking/flight/search/?page=1&limit=5',
+        'https://zoozle.dev/api/v5/booking/flight/search/?page=1&limit=1',
         headers={
             'Content-Type': 'application/json',
         },
@@ -118,8 +147,98 @@ def search_flights_tool(tool_context: ToolContext = None):
     )
 
     response_json = response.json()
-    if response_json.get("status") == "success":
-        return response_json["Data"]["PricedItineraries"][:5]
-    else:
-        return response_json
+
+    print(response_json, "=========================================================")
+
+    state = tool_context.state
     
+    state["facets"] = response_json.get("facets", {})
+    state["airline_code_map"] = response_json.get("airline_info", {})
+    state["airport_code_map"] = response_json.get("airport_info", {})
+
+    if response_json.get("Success") == True:
+        return {
+            "status": "success",
+            "no_of_flights": response_json.get("count", 0),
+            "lowest_price_trip": response_json.get("Data", {}).get("PricedItineraries", [])[0]
+        }
+    else:
+        return {
+            "status": "error",
+            "message": response_json.get("message", "Something went wrong Please try again later")
+        }
+    
+def get_filters(tool_context: ToolContext):
+    """
+    Get the filters for the search flights tool.
+    
+    Args:
+        tool_context: The ADK tool context.
+
+    Returns:
+        Dict[str, str]: 
+            -facets: A dictionary of facets.
+            -airline_code_map: A dictionary of airline code map.
+            -airport_code_map: A dictionary of airport code map.
+
+    """
+    state = tool_context.state
+
+    data = {
+        "facets": state.get("facets", {}),
+        "airline_code_map": state.get("airline_code_map", {}),
+        "airport_code_map": state.get("airport_code_map", {})
+    }
+
+    return data
+    
+
+def apply_filters_on_search_results(filters: dict, tool_context: ToolContext):
+    """
+    Apply filters on the search results.
+    Args:
+        filters: A dictionary of filters to apply. (example:{"no_of_stops": ["Direct", "One Stop"], "timings": "departure_from_BLR_airport_12:00 - 18:00 (12 PM - 6 PM) "})
+                 - the field_name should be the same as the field_name in the facets.
+                 - if you want to apply multiple filters, you can send a list of filters.
+                 - value should also be taken from the related field_name in the facets. (its inside the counts[])
+
+
+        tool_context: The ADK tool context.
+    Returns:
+        Dict[str, str]: A dictionary of key-value pairs.
+            -status: A status message.
+            -no_of_flights: The number of flights found.
+    """
+
+    print(filters, "\n\n\n--------------------------------------------------\n\n\n")
+
+    url = f'https://zoozle.dev/api/v5/booking/flight/search/?page=1&limit=1'
+
+    for key, value in filters.items():
+        url+=f'&{key}={",".join(value)}' if isinstance(value, list) else f'&{key}={value}'
+
+    print(url, "--------------------------------------------------")
+    
+    payload = _build_payload(tool_context)
+
+    response = requests.post(
+        url,
+        headers={
+            'Content-Type': 'application/json',
+        },
+        json=payload
+    )
+
+    response_json = response.json()
+
+    if response_json.get("Success") == True:
+        return {
+            "status": "success",
+            "no_of_flights": response_json.get("count", 0),
+            "lowest_price_trip": response_json.get("Data", {}).get("PricedItineraries", [])[0]
+        }
+    else:
+        return {
+            "status": "error",
+            "message": response_json.get("message", "Something went wrong Please try again later")
+        }
