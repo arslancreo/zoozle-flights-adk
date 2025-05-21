@@ -91,7 +91,7 @@ search_flights_agent = Agent(
     model=GEMINI_MODEL_2,
     instruction="""
 You are a helpful agent who can search flights for the user.
-use the search_flights_tool to search for flights between the given origin and destination on the given departure and return dates. this will take upto 10 minutes to complete.
+use the search_flights_tool to search for flights between the given origin and destination on the given departure and you might also get return date. this will take upto 10 minutes to complete.
 
 """,
  tools=[search_flights_tool]
@@ -141,7 +141,6 @@ REMEMBER return_date is optional
 For Example:
 21 May should be stored as
 2025-05-21
-
 
 Step 5:
 Then ask the user the number of adults that are going to travel

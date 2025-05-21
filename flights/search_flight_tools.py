@@ -41,7 +41,7 @@ def search_flights_tool(tool_context: ToolContext = None):
     destination = tool_context.state.get("destination_city")
     departure_date = tool_context.state.get("departure_date")
     return_date = tool_context.state.get("return_date")
-    return_date = None if return_date == "" else return_date
+    return_date = None if return_date is "" else return_date
     adults = int(tool_context.state.get("number_of_adults"))
     children = int(tool_context.state.get("number_of_children"))
     infants = int(tool_context.state.get("number_of_infants"))
@@ -67,7 +67,7 @@ def search_flights_tool(tool_context: ToolContext = None):
                     "PreferenceLevel": "Preferred"
                 }
             },
-            "AirTripType": "OneWay" if return_date == None else "Return",
+            "AirTripType": "OneWay" if return_date is None or return_date is "" else "Return",
             "Filters": {}
         },
         "PricingSourceType": "All",
@@ -101,7 +101,7 @@ def search_flights_tool(tool_context: ToolContext = None):
         })
 
     # Add return flight if specified
-    if return_date != None:
+    if return_date is not None and return_date is not "":
         payload["OriginDestinationInformations"].append({
             "DepartureDateTime": f"{return_date}T00:00:00",
             "OriginLocationCode": destination,
@@ -110,7 +110,7 @@ def search_flights_tool(tool_context: ToolContext = None):
 
     # Make the API request
     response = requests.post(
-        'https://zoozle.dev/api/v5/booking/flight/search/',
+        'https://zoozle.dev/api/v5/booking/flight/search/?page=1&limit=5',
         headers={
             'Content-Type': 'application/json',
         },
