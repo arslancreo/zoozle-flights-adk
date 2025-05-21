@@ -100,7 +100,6 @@ class TextHistory:
         print(f"[SYNTHESIZING AUDIO]: {text}")  # Debug print
         logger.info(f"[SYNTHESIZING AUDIO]: {text}")
         print(f"[SYNTHESIZING AUDIO]: {datetime.now().isoformat()}")  # Debug print
-        return
         audio_content = google_synthesizer.synthesize(text)
         audio_base64 = base64.b64encode(audio_content).decode("utf-8")
         await self.websocket.send_text(json.dumps({
