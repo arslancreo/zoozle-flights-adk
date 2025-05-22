@@ -4,6 +4,7 @@ import os
 from fastapi.logger import logger
 
 from flights.custom_session import CustomSession, CustomSessionService
+from flights.search_flight_tools import get_payment_status
 from google_transcriber import GoogleTranscriber, GoogleTranscriberConfig
 
 # Force stdout to be unbuffered
@@ -251,6 +252,12 @@ async def client_to_agent_messaging(websocket, live_request_queue, session):
                 logger.info(f"[PASSENGER DETAILS]: {data_json['passenger_details']}")
                 session.state["passenger_details"] = data_json["passenger_details"]
                 print("--------------------------passenger details-------------------", session.state["passenger_details"])
+
+                if data_json and "payment_data" in data_json.keys():
+                    logger.info(f"[PAYMENT DATA]: {data_json['payment_data']}")
+                    payment_status = get_payment_status(data_json["payment_data"], session)
+                    print("--------------------------payment status-------------------", payment_status)
+                    
                 if isinstance(session, CustomSession):
                     session.update_state()
             

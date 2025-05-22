@@ -122,6 +122,9 @@ root_agent = Agent(
             - memorize: to store the state
             - get_filters: to get the filters available for the search results
             - apply_filters_on_search_results: to apply the filters on the search results
+            - get_state: to get the state of the session
+            - confirm_flight_tool: to confirm the flight
+            - book_flight: to book the flight
 
         <today_datetime>
         {today_datetime}
@@ -198,7 +201,7 @@ root_agent = Agent(
             once the user says payment is done, check the payment_status in the state with the key payment_status using the get_state tool
               - if payment_status is "pending" tell the user the payment is pending and ask them to make payment
               - if payment_status is "failed" tell the user the payment is failed and ask them to try again 
-              - if payment_status is "success" tell the user the booking is done and the booking id 
+              - if payment_status is "success" tell the user the booking is done and the booking id get the booking id from the state with the key booking_id using the get_state tool
               - if payment_status is "not_started" tell the user the payment is not initiated yet and and call the book_flight tool to book the flight. and follow the steps from step 12
 
 
@@ -213,7 +216,7 @@ root_agent = Agent(
             - limit the sentences to 20 words
             - do not ask the user to repeat the details again and again, if the user has provided the details then move to the next step
             - Do not forget to fill the state every step otherwise the flow will break
-            - Do not use any special characters in the response
+            - Do not use any special characters like asterisk(*) new line(\n) in the response
 
         <source_city_code>
         {source_city_code}

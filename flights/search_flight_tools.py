@@ -365,12 +365,45 @@ def book_flight(tool_context: ToolContext):
     }
 
 
-def get_payment_status(data: dict):
+def get_payment_status(data: dict, session: CustomSession):
     if not data.get("razorpay_payment_id") or not data.get("razorpay_order_id") or not data.get("razorpay_signature"):
         return {
             "status": False,
             "message": "Payment is not done"
         }
     
-    url = "https://zoozle.dev/api/v5/booking/payment/verify/"
+    url = f"https://zoozle.dev/api/v5/booking/flight/{session.state.get('internal_booking_id')}/capture-payment/"
     
+    response = requests.post(
+        url,
+        headers={
+            'Content-Type': 'application/json',
+            'Authorization': f'{session.state.get("token")}'
+        },
+        json={
+            "razorpay_payment_id": data.get("razorpay_payment_id"),
+            "razorpay_order_id": data.get("razorpay_order_id"),
+            "razorpay_signature": data.get("razorpay_signature")
+        }
+    )
+
+    if response.status_code not in [200, 201]:
+        return {
+            "status": False,
+            "message": response.json()
+        }
+
+    if response.json().get("payment_data").get("razorpay_status") == "captured":
+        session.state["payment_status"] = "success"
+        session.state["booking_id"] = response.json().get("booking_id", "")
+        if isinstance(session, CustomSession):
+            session.update_state()
+        return {
+            "status": True,
+            "message": "Payment is done"
+        }
+    else:
+        return {
+            "status": False,
+            "message": "Payment is not done"
+        }
