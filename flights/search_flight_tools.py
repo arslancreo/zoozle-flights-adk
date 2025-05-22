@@ -282,6 +282,7 @@ def confirm_flight_tool(tool_context: ToolContext):
     state["airline_code_map"] = response_json.get("airline_info", {})
     state["airport_code_map"] = response_json.get("airport_info", {})
     state["required_fields_to_book"] = response_json.get("Data", {}).get("PricedItineraries", [{}])[0].get("RequiredFieldsToBook", []) or ["Email","Title","ContactNumber"]
+    state["ask_for_passenger_details"] = True
     
     session = tool_context._invocation_context.session
     if isinstance(session, CustomSession):
@@ -309,7 +310,7 @@ def book_flight(tool_context: ToolContext):
 
     response = requests.post(
         'https://zoozle.dev/api/v5/booking/flight/revalidate/',
-        params={'create_payment': True},
+        params={'create_payment': True, 'create_booking': True},
         headers={
             'Content-Type': 'application/json',
         },
@@ -325,7 +326,7 @@ def book_flight(tool_context: ToolContext):
     fare_source_code = response.json().get("Data", {}).get("PricedItineraries", [])[0].get("FareSourceCode", "")
 
     payload = {
-        "FareSourceCode": tool_context.state.get("fare_source_code"),
+        "FareSourceCode": fare_source_code,
         "TravelerInfo": passenger_details
     }
 

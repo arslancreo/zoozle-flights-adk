@@ -218,7 +218,7 @@ async def agent_to_client_messaging(websocket, live_events):
             
 
 
-async def client_to_agent_messaging(websocket, live_request_queue):
+async def client_to_agent_messaging(websocket, live_request_queue, session):
     """Client to agent communication"""
     while True:
 
@@ -247,6 +247,15 @@ async def client_to_agent_messaging(websocket, live_request_queue):
             else:
                 text = ""
         else:
+            if data_json and "passenger_details" in data_json.keys():
+                logger.info(f"[PASSENGER DETAILS]: {data_json['passenger_details']}")
+                session.state["passenger_details"] = data_json["passenger_details"]
+                session.update_state()
+            if data_json and "token" in data_json.keys():
+                logger.info(f"[TOKEN]: {data_json['token']}")
+                session.state["token"] = data_json["token"]
+                session.update_state()
+            
             # Fallback: treat as plain text
             text = data if isinstance(data, str) else ""
         if text:
@@ -320,7 +329,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     # Start tasks
     agent_to_client_task = asyncio.create_task(agent_to_client_messaging(websocket, live_events))
     
-    client_to_agent_task = asyncio.create_task(client_to_agent_messaging(websocket, live_request_queue))
+    client_to_agent_task = asyncio.create_task(client_to_agent_messaging(websocket, live_request_queue, session))
 
     disconnect_agent_task = asyncio.create_task(disconnect_agent(websocket, session, session_id, session_id))
 
