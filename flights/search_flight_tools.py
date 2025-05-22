@@ -297,6 +297,7 @@ def book_flight(tool_context: ToolContext):
     """
     Book the flight using the fare source code.
     """
+    session = tool_context._invocation_context.session
     passenger_details = tool_context.state.get("passenger_details", {})
     if not passenger_details:
         return {
@@ -313,6 +314,7 @@ def book_flight(tool_context: ToolContext):
         params={'create_payment': True, 'create_booking': True},
         headers={
             'Content-Type': 'application/json',
+            'Authorization': f'{tool_context.state.get("token")}'
         },
         json=payload
     )
@@ -323,18 +325,39 @@ def book_flight(tool_context: ToolContext):
             "message": response.json().get("message", "Something went wrong Please try again later")
         }
     
-    fare_source_code = response.json().get("Data", {}).get("PricedItineraries", [])[0].get("FareSourceCode", "")
+    print("--------------------------book flight response-------------------", response.json())
+    fare_source_code = response.json().get("Data", {}).get("PricedItineraries", [])[0].get("AirItineraryPricingInfo", {}).get("FareSourceCode", "")
 
     payload = {
         "FareSourceCode": fare_source_code,
         "TravelerInfo": passenger_details
     }
 
+    print("--------------------------book flight payload-------------------", payload)
+
     response = requests.post(
         'https://zoozle.dev/api/v5/booking/flight/book/',
         headers={
             'Content-Type': 'application/json',
-            'Authorization': f'Token '
+            'Authorization': f'{tool_context.state.get("token")}'
         },
         json=payload
     )
+    print("--------------------------book flight response-------------------", response.status_code, response.json())
+
+    if response.status_code not in [200, 201]:
+        return {
+            "status": "error",
+            "message": response.json()
+        }
+
+    session.state["payment_data"] = response.json().get("payment_data", {})
+    session.state["ask_for_payment"] = True
+    session.state["payment_status"] = "pending"
+    if isinstance(session, CustomSession):
+        session.update_state()
+
+    return {
+        "status": "success",
+        "message": "Payment is pending, please make the payment to complete the booking"
+    }

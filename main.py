@@ -3,7 +3,7 @@ import sys
 import os
 from fastapi.logger import logger
 
-from flights.custom_session import CustomSessionService
+from flights.custom_session import CustomSession, CustomSessionService
 from google_transcriber import GoogleTranscriber, GoogleTranscriberConfig
 
 # Force stdout to be unbuffered
@@ -250,7 +250,9 @@ async def client_to_agent_messaging(websocket, live_request_queue, session):
             if data_json and "passenger_details" in data_json.keys():
                 logger.info(f"[PASSENGER DETAILS]: {data_json['passenger_details']}")
                 session.state["passenger_details"] = data_json["passenger_details"]
-                session.update_state()
+                print("--------------------------passenger details-------------------", session.state["passenger_details"])
+                if isinstance(session, CustomSession):
+                    session.update_state()
             
             # Fallback: treat as plain text
             text = data if isinstance(data, str) else ""

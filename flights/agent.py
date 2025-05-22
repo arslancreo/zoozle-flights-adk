@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 import requests
 
 from flights.constants import GEMINI_MODEL, GEMINI_MODEL_2
-from flights.memory import _load_precreated_itinerary, memorize
+from flights.memory import _load_precreated_itinerary, get_state, memorize
 from flights.search_flight_tools import apply_filters_on_search_results, book_flight, confirm_flight_tool, get_cities, get_filters, search_flights_tool
 
 
@@ -187,7 +187,18 @@ root_agent = Agent(
 
         Step 12: 
             ask the user for the details to book the flight, you should just tell them to provide the details and you should not ask for the details, 
-            user will type the details and he will say its done. after that you have to call book_flight tool to book the flight. and wait for the user to complete the payment.
+            user will type the details manually to state with the key passenger_details
+            you can get the required fields to book using the get_state tool with the key required_fields_to_book
+            you should not proceed to further till you see the passenger_details in the state with the key passenger_details using the get_state tool
+            once user says details are done check the passenger_details and if all the details are present call the book_flight tool to book the flight.
+        
+        Step 13:
+            here you have to wait for the user to complete the payment. 
+            once the user says payment is done, check the payment_status in the state with the key payment_status using the get_state tool
+              - if payment_status is "pending" tell the user the payment is pending and ask them to make payment
+              - if payment_status is "failed" tell the user the payment is failed and ask them to try again 
+              - if payment_status is "success" tell the user the booking is done and the booking id 
+              - if payment_status is "not_started" tell the user the payment is not initiated yet and and call the book_flight tool to book the flight. and follow the steps from step 12
 
 
         Note:
@@ -224,5 +235,5 @@ root_agent = Agent(
         {number_of_infants}
         </number_of_infants>
     """,
-    tools=[get_cities,  search_flights_tool, memorize, get_filters, apply_filters_on_search_results, confirm_flight_tool, book_flight],
+    tools=[get_cities,  search_flights_tool, memorize, get_state, get_filters, apply_filters_on_search_results, confirm_flight_tool, book_flight],
 )

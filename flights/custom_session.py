@@ -49,6 +49,10 @@ class CustomSession(Session):
             "passenger_details": None,
             "ask_for_passenger_details": False,
             "token": None,
+            "payment_data": None,
+            "ask_for_payment": False,
+            "booking_id": None,
+            "payment_status": "not_started",
         }
 
     def get_preferences(self) -> UserPreferences:
@@ -74,6 +78,10 @@ class CustomSession(Session):
             "passenger_details": self.state.get("passenger_details"),
             "ask_for_passenger_details": self.state.get("ask_for_passenger_details"),
             "token": self.state.get("token"),
+            "payment_data": self.state.get("payment_data"),
+            "ask_for_payment": self.state.get("ask_for_payment"),
+            "booking_id": self.state.get("booking_id"),
+            "payment_status": self.state.get("payment_status"),
         }
 
     async def wait_for_preference_change(self) -> UserPreferences:
