@@ -20,7 +20,9 @@ class UserPreferences(TypedDict):
     airline_code_map: Optional[Dict[str, Any]]
     airport_code_map: Optional[Dict[str, Any]]
     passenger_details: Optional[Dict[str, Any]]
-    
+    ask_for_passenger_details: Optional[bool]
+    token: Optional[str]
+
 class CustomSession(Session):
     def __init__(self, app_name: str, user_id: str, session_id: str, state: Optional[Dict[str, Any]] = None):
         # Initialize the base Session class with required fields
@@ -45,6 +47,8 @@ class CustomSession(Session):
             "airline_code_map": None,
             "airport_code_map": None,
             "passenger_details": None,
+            "ask_for_passenger_details": False,
+            "token": None,
         }
 
     def get_preferences(self) -> UserPreferences:
@@ -68,6 +72,8 @@ class CustomSession(Session):
             "airline_code_map": self.state.get("airline_code_map"),
             "airport_code_map": self.state.get("airport_code_map"),
             "passenger_details": self.state.get("passenger_details"),
+            "ask_for_passenger_details": self.state.get("ask_for_passenger_details"),
+            "token": self.state.get("token"),
         }
 
     async def wait_for_preference_change(self) -> UserPreferences:
@@ -109,6 +115,9 @@ class CustomSession(Session):
         if old_preferences != new_preferences:
             self._preference_changed.set()
             self._last_preferences = new_preferences
+            if old_preferences.get("ask_for_passenger_details") != new_preferences.get("ask_for_passenger_details"):
+                self.state["ask_for_passenger_details"] = False
+            
             
 class CustomSessionService(InMemorySessionService):
     def create_session(
