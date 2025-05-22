@@ -15,7 +15,12 @@ class UserPreferences(TypedDict):
     number_of_adults: Optional[int]
     number_of_children: Optional[int]
     number_of_infants: Optional[int]
-
+    fare_source_code: Optional[str]
+    required_fields_to_book: Optional[Dict[str, Any]]
+    airline_code_map: Optional[Dict[str, Any]]
+    airport_code_map: Optional[Dict[str, Any]]
+    passenger_details: Optional[Dict[str, Any]]
+    
 class CustomSession(Session):
     def __init__(self, app_name: str, user_id: str, session_id: str, state: Optional[Dict[str, Any]] = None):
         # Initialize the base Session class with required fields
@@ -35,6 +40,11 @@ class CustomSession(Session):
             "number_of_adults": None,
             "number_of_children": None,
             "number_of_infants": None,
+            "fare_source_code": None,
+            "required_fields_to_book": None,
+            "airline_code_map": None,
+            "airport_code_map": None,
+            "passenger_details": None,
         }
 
     def get_preferences(self) -> UserPreferences:
@@ -53,6 +63,11 @@ class CustomSession(Session):
             "number_of_adults": self.state.get("number_of_adults"),
             "number_of_children": self.state.get("number_of_children"),
             "number_of_infants": self.state.get("number_of_infants"),
+            "fare_source_code": self.state.get("fare_source_code"),
+            "required_fields_to_book": self.state.get("required_fields_to_book"),
+            "airline_code_map": self.state.get("airline_code_map"),
+            "airport_code_map": self.state.get("airport_code_map"),
+            "passenger_details": self.state.get("passenger_details"),
         }
 
     async def wait_for_preference_change(self) -> UserPreferences:

@@ -9,7 +9,7 @@ import requests
 
 from flights.constants import GEMINI_MODEL, GEMINI_MODEL_2
 from flights.memory import _load_precreated_itinerary, memorize
-from flights.search_flight_tools import apply_filters_on_search_results, get_cities, get_filters, search_flights_tool
+from flights.search_flight_tools import apply_filters_on_search_results, book_flight, confirm_flight_tool, get_cities, get_filters, search_flights_tool
 
 
 
@@ -114,6 +114,8 @@ root_agent = Agent(
     instruction="""
         You are a helpful agent who can search flights for the user.
 
+        Whatever you generate will be converted to speech and sent to the user. So text should be able to be converted to speech and should be more like a human.
+
         Tools Available:
             - get_cities: to get the iata code of the city
             - search_flights_tool: to search for flights
@@ -176,6 +178,17 @@ root_agent = Agent(
             if user asks to filter the result check the filters available using tool get_filters and then use the apply_filters_on_search_results tool to apply the filters on the search results to get user desired results
              - you should user field_name as the key and value should be from one of the counts[]. if more than one value for a key send it in list format
 
+        Step 10:
+            make the user to select the flight they want to book, store the FareSourceCode with the key fare_source_code in state using memorize tool
+
+    
+        Step 11:
+            confirm the flight using the confirm_flight_tool and its not the end of the booking process.
+
+        Step 12: 
+            ask the user for the details to book the flight, you should just tell them to provide the details and you should not ask for the details, 
+            user will type the details and he will say its done. after that you have to call book_flight tool to book the flight. and wait for the user to complete the payment.
+
 
         Note:
             - return date is optional
@@ -211,5 +224,5 @@ root_agent = Agent(
         {number_of_infants}
         </number_of_infants>
     """,
-    tools=[get_cities,  search_flights_tool, memorize, get_filters, apply_filters_on_search_results],
+    tools=[get_cities,  search_flights_tool, memorize, get_filters, apply_filters_on_search_results, confirm_flight_tool, book_flight],
 )

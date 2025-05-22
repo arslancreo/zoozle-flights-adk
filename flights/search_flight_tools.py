@@ -2,6 +2,8 @@ import os
 from dotenv import load_dotenv
 import requests
 from google.adk.tools import ToolContext
+
+from flights.custom_session import CustomSession
 load_dotenv() 
 
 typesense_key = os.getenv("TYPESENSE_KEY")
@@ -242,3 +244,96 @@ def apply_filters_on_search_results(filters: dict, tool_context: ToolContext):
             "status": "error",
             "message": response_json.get("message", "Something went wrong Please try again later")
         }
+
+def confirm_flight_tool(tool_context: ToolContext):
+    """
+    Confirm flight availability and pricing using the fare source code.
+    
+    Args:
+        fare_source_code: The fare source code for the flight
+        tool_context: Tool context containing conversation info
+        
+    Returns:
+        Response from the revalidation API
+    """
+    state = tool_context.state
+
+    if not state.get("fare_source_code"):
+        return {
+            "status": "error",
+            "message": "I cannot confirm the flight without fare source code"
+        }
+
+    payload = {
+        "FareSourceCode": state.get("fare_source_code"),
+    }
+
+    response = requests.post(
+        'https://zoozle.dev/api/v5/booking/flight/revalidate/',
+        params={'create_booking': False},
+        headers={
+            'Content-Type': 'application/json',
+        },
+        json=payload
+    )
+
+    response_json = response.json()
+
+    state["airline_code_map"] = response_json.get("airline_info", {})
+    state["airport_code_map"] = response_json.get("airport_info", {})
+    state["required_fields_to_book"] = response_json.get("Data", {}).get("PricedItineraries", [{}])[0].get("RequiredFieldsToBook", []) or ["Email","Title","ContactNumber"]
+    
+    session = tool_context._invocation_context.session
+    if isinstance(session, CustomSession):
+        session.update_state()
+
+    if response_json.get("Success") == True:
+        return response_json.get("Data", {}).get("PricedItineraries", [])[0]
+    else:
+        return response_json
+
+def book_flight(tool_context: ToolContext):
+    """
+    Book the flight using the fare source code.
+    """
+    passenger_details = tool_context.state.get("passenger_details", {})
+    if not passenger_details:
+        return {
+            "status": "error",
+            "message": "I cannot book the flight without passenger details"
+        }
+    
+    payload = {
+        "FareSourceCode": tool_context.state.get("fare_source_code"),
+    }
+
+    response = requests.post(
+        'https://zoozle.dev/api/v5/booking/flight/revalidate/',
+        params={'create_payment': True},
+        headers={
+            'Content-Type': 'application/json',
+        },
+        json=payload
+    )
+
+    if not response.json().get("Success"):
+        return {
+            "status": "error",
+            "message": response.json().get("message", "Something went wrong Please try again later")
+        }
+    
+    fare_source_code = response.json().get("Data", {}).get("PricedItineraries", [])[0].get("FareSourceCode", "")
+
+    payload = {
+        "FareSourceCode": tool_context.state.get("fare_source_code"),
+        "TravelerInfo": passenger_details
+    }
+
+    response = requests.post(
+        'https://zoozle.dev/api/v5/booking/flight/book/',
+        headers={
+            'Content-Type': 'application/json',
+            'Authorization': f'Token '
+        },
+        json=payload
+    )
