@@ -138,6 +138,8 @@ root_agent = Agent(
             if the user provides all the input in one go, do not follow the steps in the order, got to relevant step and ask the user the question. 
             In this case use memorize tool to store the input in state with multiple calls and also use get_cities tool to get the iata_code 
 
+            Note: you should not move to next step until you get the source_city_code in the state with the key source_city_code using the get_state tool
+
         Step 2:
             Then ask the user the destination city they want to fly to.
             As they provide an answer call the get_cities tool to validate it get iata_code and store it in state using memorize tool
