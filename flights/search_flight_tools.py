@@ -2,6 +2,8 @@ import os
 from dotenv import load_dotenv
 import requests
 from google.adk.tools import ToolContext
+
+from flights.custom_session import CustomSession
 load_dotenv() 
 
 typesense_key = os.getenv("TYPESENSE_KEY")
@@ -160,6 +162,7 @@ def search_flights_tool(tool_context: ToolContext = None):
         return {
             "status": "success",
             "no_of_flights": response_json.get("count", 0),
+            "fare_source_code_of_the_lowest_price_trip": response_json.get("Data", {}).get("PricedItineraries", [])[0].get("AirItineraryPricingInfo", {}).get("FareSourceCode", ""),
             "lowest_price_trip": response_json.get("Data", {}).get("PricedItineraries", [])[0]
         }
     else:
@@ -241,4 +244,171 @@ def apply_filters_on_search_results(filters: dict, tool_context: ToolContext):
         return {
             "status": "error",
             "message": response_json.get("message", "Something went wrong Please try again later")
+        }
+
+def confirm_flight_tool(fare_source_code: str, tool_context: ToolContext):
+    """
+    Confirm flight availability and pricing using the fare source code.
+    
+    Args:
+        fare_source_code: The fare source code for the flight which you will get in the search_flights_tool response
+        tool_context: Tool context containing conversation info
+        
+    Returns:
+        Response from the revalidation API
+    """
+    state = tool_context.state
+
+    if not fare_source_code:
+        return {
+            "status": "error",
+            "message": "I cannot confirm the flight without fare source code"
+        }
+
+    payload = {
+        "FareSourceCode": fare_source_code,
+    }
+
+    response = requests.post(
+        'https://zoozle.dev/api/v5/booking/flight/revalidate/',
+        params={'create_booking': False},
+        headers={
+            'Content-Type': 'application/json',
+        },
+        json=payload
+    )
+
+    print("--------------------------confirm flight response-------------------", response.status_code)
+    
+    session = tool_context._invocation_context.session
+    session.state["fare_source_code"] = fare_source_code
+    if isinstance(session, CustomSession):
+        session.update_state()
+
+    if response.status_code in [200, 201]:
+        response_json = response.json()
+        state["airline_code_map"] = response_json.get("airline_info", {})
+        state["airport_code_map"] = response_json.get("airport_info", {})
+        state["required_fields_to_book"] = response_json.get("Data", {}).get("PricedItineraries", [{}])[0].get("RequiredFieldsToBook", []) or ["Email","Title","ContactNumber"]
+        state["ask_for_passenger_details"] = True
+        state["payment_status"] = "not_started"
+        return response_json.get("Data", {}).get("PricedItineraries", [])[0]
+    else:
+        return {
+            "status": "error",
+            "message": "I cannot confirm the the flight, please try again later"
+        }
+
+def book_flight(tool_context: ToolContext):
+    """
+    Book the flight using the fare source code.
+    """
+    session = tool_context._invocation_context.session
+    passenger_details = tool_context.state.get("passenger_details", {})
+    if not passenger_details:
+        return {
+            "status": "error",
+            "message": "I cannot book the flight without passenger details"
+        }
+    
+    payload = {
+        "FareSourceCode": tool_context.state.get("fare_source_code"),
+    }
+
+    response = requests.post(
+        'https://zoozle.dev/api/v5/booking/flight/revalidate/',
+        params={'create_payment': True, 'create_booking': True},
+        headers={
+            'Content-Type': 'application/json',
+            'Authorization': f'{tool_context.state.get("token")}'
+        },
+        json=payload
+    )
+
+    if not response.json().get("Success"):
+        return {
+            "status": "error",
+            "message": response.json().get("message", "Something went wrong Please try again later")
+        }
+    
+    print("--------------------------book flight response-------------------", response.json())
+    fare_source_code = response.json().get("Data", {}).get("PricedItineraries", [])[0].get("AirItineraryPricingInfo", {}).get("FareSourceCode", "")
+
+    payload = {
+        "FareSourceCode": fare_source_code,
+        "TravelerInfo": passenger_details
+    }
+
+    print("--------------------------book flight payload-------------------", payload)
+
+    response = requests.post(
+        'https://zoozle.dev/api/v5/booking/flight/book/',
+        headers={
+            'Content-Type': 'application/json',
+            'Authorization': f'{tool_context.state.get("token")}'
+        },
+        json=payload
+    )
+    print("--------------------------book flight response-------------------", response.status_code, response.json())
+
+    if response.status_code not in [200, 201]:
+        return {
+            "status": "error",
+            "message": response.json()
+        }
+
+    session.state["payment_data"] = response.json().get("payment_data", {})
+    session.state["ask_for_payment"] = True
+    session.state["payment_status"] = "pending"
+    session.state["internal_booking_id"] = response.json().get("booking_token", "")
+    if isinstance(session, CustomSession):
+        session.update_state()
+
+    return {
+        "status": "success",
+        "message": "Payment is pending, please make the payment to complete the booking"
+    }
+
+
+def get_payment_status(data: dict, session: CustomSession):
+    if not data.get("razorpay_payment_id") or not data.get("razorpay_order_id") or not data.get("razorpay_signature"):
+        return {
+            "status": False,
+            "message": "Payment is not done"
+        }
+    
+    url = f"https://zoozle.dev/api/v5/booking/flight/{session.state.get('internal_booking_id')}/capture-payment/"
+    
+    response = requests.post(
+        url,
+        headers={
+            'Content-Type': 'application/json',
+            'Authorization': f'{session.state.get("token")}'
+        },
+        json={
+            "razorpay_payment_id": data.get("razorpay_payment_id"),
+            "razorpay_order_id": data.get("razorpay_order_id"),
+            "razorpay_signature": data.get("razorpay_signature")
+        }
+    )
+
+    if response.status_code not in [200, 201]:
+        return {
+            "status": False,
+            "message": response.json()
+        }
+
+    if response.json().get("payment_data").get("razorpay_status") == "captured":
+        session.state["payment_status"] = "success"
+        session.state["booking_id"] = response.json().get("booking_id", "")
+        if isinstance(session, CustomSession):
+            session.update_state()
+        return {
+            "status": True,
+            "message": "Payment is done"
+        }
+    else:
+        return {
+            "status": False,
+            "message": "Payment is not done"
         }

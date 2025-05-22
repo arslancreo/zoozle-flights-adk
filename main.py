@@ -3,7 +3,8 @@ import sys
 import os
 from fastapi.logger import logger
 
-from flights.custom_session import CustomSessionService
+from flights.custom_session import CustomSession, CustomSessionService
+from flights.search_flight_tools import get_payment_status
 from google_transcriber import GoogleTranscriber, GoogleTranscriberConfig
 
 # Force stdout to be unbuffered
@@ -218,7 +219,7 @@ async def agent_to_client_messaging(websocket, live_events):
             
 
 
-async def client_to_agent_messaging(websocket, live_request_queue):
+async def client_to_agent_messaging(websocket, live_request_queue, session):
     """Client to agent communication"""
     while True:
 
@@ -247,6 +248,19 @@ async def client_to_agent_messaging(websocket, live_request_queue):
             else:
                 text = ""
         else:
+            if data_json and "passenger_details" in data_json.keys():
+                logger.info(f"[PASSENGER DETAILS]: {data_json['passenger_details']}")
+                session.state["passenger_details"] = data_json["passenger_details"]
+                print("--------------------------passenger details-------------------", session.state["passenger_details"])
+
+                if data_json and "payment_data" in data_json.keys():
+                    logger.info(f"[PAYMENT DATA]: {data_json['payment_data']}")
+                    payment_status = get_payment_status(data_json["payment_data"], session)
+                    print("--------------------------payment status-------------------", payment_status)
+                    
+                if isinstance(session, CustomSession):
+                    session.update_state()
+            
             # Fallback: treat as plain text
             text = data if isinstance(data, str) else ""
         if text:
@@ -276,6 +290,11 @@ async def show_user_preffered_details(websocket, session):
         while True:
             # Wait for preference changes
             preferences = await session.wait_for_preference_change()
+            if preferences.get("ask_for_passenger_details"):
+                session.set_state_value_to_false("ask_for_passenger_details")
+            if preferences.get("ask_for_payment"):
+                session.set_state_value_to_false("ask_for_payment")
+                
             print(f"---------------------------------Preferences: {preferences}---------------------------------")
             await websocket.send_text(json.dumps(preferences))
     except Exception as e:
@@ -317,10 +336,13 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     session_id = str(session_id)
     live_events, live_request_queue, session = start_agent_session(session_id=session_id, user_id=session_id)
 
+    session.state["token"] = session_id
+    session.update_state()
+
     # Start tasks
     agent_to_client_task = asyncio.create_task(agent_to_client_messaging(websocket, live_events))
     
-    client_to_agent_task = asyncio.create_task(client_to_agent_messaging(websocket, live_request_queue))
+    client_to_agent_task = asyncio.create_task(client_to_agent_messaging(websocket, live_request_queue, session))
 
     disconnect_agent_task = asyncio.create_task(disconnect_agent(websocket, session, session_id, session_id))
 

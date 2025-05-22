@@ -15,6 +15,18 @@ class UserPreferences(TypedDict):
     number_of_adults: Optional[int]
     number_of_children: Optional[int]
     number_of_infants: Optional[int]
+    fare_source_code: Optional[str]
+    required_fields_to_book: Optional[Dict[str, Any]]
+    airline_code_map: Optional[Dict[str, Any]]
+    airport_code_map: Optional[Dict[str, Any]]
+    passenger_details: Optional[Dict[str, Any]]
+    ask_for_passenger_details: Optional[bool]
+    token: Optional[str]
+    payment_data: Optional[Dict[str, Any]]
+    ask_for_payment: Optional[bool]
+    booking_id: Optional[str]
+    payment_status: Optional[str]
+    internal_booking_id: Optional[str]
 
 class CustomSession(Session):
     def __init__(self, app_name: str, user_id: str, session_id: str, state: Optional[Dict[str, Any]] = None):
@@ -35,6 +47,18 @@ class CustomSession(Session):
             "number_of_adults": None,
             "number_of_children": None,
             "number_of_infants": None,
+            "fare_source_code": None,
+            "required_fields_to_book": None,
+            "airline_code_map": None,
+            "airport_code_map": None,
+            "passenger_details": None,
+            "ask_for_passenger_details": False,
+            "token": None,
+            "payment_data": None,
+            "ask_for_payment": False,
+            "booking_id": None,
+            "payment_status": "not_started",
+            "internal_booking_id": None,
         }
 
     def get_preferences(self) -> UserPreferences:
@@ -53,6 +77,18 @@ class CustomSession(Session):
             "number_of_adults": self.state.get("number_of_adults"),
             "number_of_children": self.state.get("number_of_children"),
             "number_of_infants": self.state.get("number_of_infants"),
+            "fare_source_code": self.state.get("fare_source_code"),
+            "required_fields_to_book": self.state.get("required_fields_to_book"),
+            "airline_code_map": self.state.get("airline_code_map"),
+            "airport_code_map": self.state.get("airport_code_map"),
+            "passenger_details": self.state.get("passenger_details"),
+            "ask_for_passenger_details": self.state.get("ask_for_passenger_details"),
+            "token": self.state.get("token"),
+            "payment_data": self.state.get("payment_data"),
+            "ask_for_payment": self.state.get("ask_for_payment", False),
+            "booking_id": self.state.get("booking_id"),
+            "payment_status": self.state.get("payment_status"),
+            "internal_booking_id": self.state.get("internal_booking_id"),
         }
 
     async def wait_for_preference_change(self) -> UserPreferences:
@@ -77,6 +113,12 @@ class CustomSession(Session):
         self._end_call_event.clear()
         return True
     
+    def set_state_value_to_false(self, key: str) -> None:
+        """
+        Set the state of the session for the given key to False.
+        """
+        self.state[key] = False
+    
     
     def update_state(self) -> None:
         """
@@ -94,6 +136,7 @@ class CustomSession(Session):
         if old_preferences != new_preferences:
             self._preference_changed.set()
             self._last_preferences = new_preferences
+            
             
 class CustomSessionService(InMemorySessionService):
     def create_session(

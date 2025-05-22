@@ -45,7 +45,7 @@ def memorize(key: str, value: str, tool_context: ToolContext):
         A status message.
     """
     mem_dict = tool_context.state
-    mem_dict[key] = value.strip()
+    mem_dict[key] = value.strip() if isinstance(value, str) else value
     session = tool_context._invocation_context.session
     
     if isinstance(session, CustomSession):
