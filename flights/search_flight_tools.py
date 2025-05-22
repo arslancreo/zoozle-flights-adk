@@ -162,6 +162,7 @@ def search_flights_tool(tool_context: ToolContext = None):
         return {
             "status": "success",
             "no_of_flights": response_json.get("count", 0),
+            "fare_source_code_of_the_lowest_price_trip": response_json.get("Data", {}).get("PricedItineraries", [])[0].get("AirItineraryPricingInfo", {}).get("FareSourceCode", ""),
             "lowest_price_trip": response_json.get("Data", {}).get("PricedItineraries", [])[0]
         }
     else:

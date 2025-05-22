@@ -181,9 +181,13 @@ root_agent = Agent(
             on the given departure and return dates. this will take upto 20 seconds to complete.
 
         Step 9:
+            if user wants to select the flight, you have to use FareSourceCode of the flight to select the flight. You will get the FareSouceCode in the search_flights_tool response.
             if user asks for more detail check the result of the search_flights_tool and respond with relevant details
             if user asks to filter the result check the filters available using tool get_filters and then use the apply_filters_on_search_results tool to apply the filters on the search results to get user desired results
              - you should user field_name as the key and value should be from one of the counts[]. if more than one value for a key send it in list format
+
+            Note:
+              - do not ask the user for fareSourceCode, you will get it in the search_flights_tool response
 
         Step 10:
             make the user to select the flight they want to book, store the FareSourceCode with the key fare_source_code in state using memorize tool
