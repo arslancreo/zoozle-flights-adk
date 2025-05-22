@@ -22,6 +22,11 @@ class UserPreferences(TypedDict):
     passenger_details: Optional[Dict[str, Any]]
     ask_for_passenger_details: Optional[bool]
     token: Optional[str]
+    payment_data: Optional[Dict[str, Any]]
+    ask_for_payment: Optional[bool]
+    booking_id: Optional[str]
+    payment_status: Optional[str]
+    internal_booking_id: Optional[str]
 
 class CustomSession(Session):
     def __init__(self, app_name: str, user_id: str, session_id: str, state: Optional[Dict[str, Any]] = None):
@@ -53,6 +58,7 @@ class CustomSession(Session):
             "ask_for_payment": False,
             "booking_id": None,
             "payment_status": "not_started",
+            "internal_booking_id": None,
         }
 
     def get_preferences(self) -> UserPreferences:
@@ -79,9 +85,10 @@ class CustomSession(Session):
             "ask_for_passenger_details": self.state.get("ask_for_passenger_details"),
             "token": self.state.get("token"),
             "payment_data": self.state.get("payment_data"),
-            "ask_for_payment": self.state.get("ask_for_payment"),
+            "ask_for_payment": self.state.get("ask_for_payment", False),
             "booking_id": self.state.get("booking_id"),
             "payment_status": self.state.get("payment_status"),
+            "internal_booking_id": self.state.get("internal_booking_id"),
         }
 
     async def wait_for_preference_change(self) -> UserPreferences:

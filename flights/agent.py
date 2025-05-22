@@ -194,6 +194,7 @@ root_agent = Agent(
         
         Step 13:
             here you have to wait for the user to complete the payment. 
+            They will complete the payment and they will tell you that the payment is done.
             once the user says payment is done, check the payment_status in the state with the key payment_status using the get_state tool
               - if payment_status is "pending" tell the user the payment is pending and ask them to make payment
               - if payment_status is "failed" tell the user the payment is failed and ask them to try again 

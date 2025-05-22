@@ -355,6 +355,7 @@ def book_flight(tool_context: ToolContext):
     session.state["payment_data"] = response.json().get("payment_data", {})
     session.state["ask_for_payment"] = True
     session.state["payment_status"] = "pending"
+    session.state["internal_booking_id"] = response.json().get("booking_token", "")
     if isinstance(session, CustomSession):
         session.update_state()
 
@@ -362,3 +363,14 @@ def book_flight(tool_context: ToolContext):
         "status": "success",
         "message": "Payment is pending, please make the payment to complete the booking"
     }
+
+
+def get_payment_status(data: dict):
+    if not data.get("razorpay_payment_id") or not data.get("razorpay_order_id") or not data.get("razorpay_signature"):
+        return {
+            "status": False,
+            "message": "Payment is not done"
+        }
+    
+    url = "https://zoozle.dev/api/v5/booking/payment/verify/"
+    
