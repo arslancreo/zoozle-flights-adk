@@ -283,6 +283,11 @@ async def show_user_preffered_details(websocket, session):
         while True:
             # Wait for preference changes
             preferences = await session.wait_for_preference_change()
+            if preferences.get("ask_for_passenger_details"):
+                session.set_state_value_to_false("ask_for_passenger_details")
+            if preferences.get("ask_for_payment"):
+                session.set_state_value_to_false("ask_for_payment")
+                
             print(f"---------------------------------Preferences: {preferences}---------------------------------")
             await websocket.send_text(json.dumps(preferences))
     except Exception as e:

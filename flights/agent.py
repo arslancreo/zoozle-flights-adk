@@ -206,6 +206,13 @@ root_agent = Agent(
             - if user provide all the input in one go, do not follow the steps in the order, got to relevant step and ask the user the question. In this case use memorize tool to store the input in state with multiple calls
               (for example if user says from bengaluru to delhi on 21 may for one adult, do not ask for number of children, infants, return date, etc just take confirmation and call the search_flights_tool)
             - take confirmation from the user before moving to next step
+        
+            
+        IMPORTANT:
+            - limit the sentences to 20 words
+            - do not ask the user to repeat the details again and again, if the user has provided the details then move to the next step
+            - Do not forget to fill the state every step otherwise the flow will break
+            - Do not use any special characters in the response
 
         <source_city_code>
         {source_city_code}

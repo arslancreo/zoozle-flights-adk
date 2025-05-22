@@ -106,6 +106,12 @@ class CustomSession(Session):
         self._end_call_event.clear()
         return True
     
+    def set_state_value_to_false(self, key: str) -> None:
+        """
+        Set the state of the session for the given key to False.
+        """
+        self.state[key] = False
+    
     
     def update_state(self) -> None:
         """
@@ -123,8 +129,6 @@ class CustomSession(Session):
         if old_preferences != new_preferences:
             self._preference_changed.set()
             self._last_preferences = new_preferences
-            if old_preferences.get("ask_for_passenger_details") != new_preferences.get("ask_for_passenger_details"):
-                self.state["ask_for_passenger_details"] = False
             
             
 class CustomSessionService(InMemorySessionService):

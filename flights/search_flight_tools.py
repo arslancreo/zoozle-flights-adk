@@ -283,6 +283,7 @@ def confirm_flight_tool(tool_context: ToolContext):
     state["airport_code_map"] = response_json.get("airport_info", {})
     state["required_fields_to_book"] = response_json.get("Data", {}).get("PricedItineraries", [{}])[0].get("RequiredFieldsToBook", []) or ["Email","Title","ContactNumber"]
     state["ask_for_passenger_details"] = True
+    state["payment_status"] = "not_started"
     
     session = tool_context._invocation_context.session
     if isinstance(session, CustomSession):
