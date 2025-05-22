@@ -246,12 +246,12 @@ def apply_filters_on_search_results(filters: dict, tool_context: ToolContext):
             "message": response_json.get("message", "Something went wrong Please try again later")
         }
 
-def confirm_flight_tool(tool_context: ToolContext):
+def confirm_flight_tool(fare_source_code: str, tool_context: ToolContext):
     """
     Confirm flight availability and pricing using the fare source code.
     
     Args:
-        fare_source_code: The fare source code for the flight
+        fare_source_code: The fare source code for the flight which you will get in the search_flights_tool response
         tool_context: Tool context containing conversation info
         
     Returns:
@@ -259,14 +259,14 @@ def confirm_flight_tool(tool_context: ToolContext):
     """
     state = tool_context.state
 
-    if not state.get("fare_source_code"):
+    if not fare_source_code:
         return {
             "status": "error",
             "message": "I cannot confirm the flight without fare source code"
         }
 
     payload = {
-        "FareSourceCode": state.get("fare_source_code"),
+        "FareSourceCode": fare_source_code,
     }
 
     response = requests.post(
@@ -278,22 +278,26 @@ def confirm_flight_tool(tool_context: ToolContext):
         json=payload
     )
 
-    response_json = response.json()
-
-    state["airline_code_map"] = response_json.get("airline_info", {})
-    state["airport_code_map"] = response_json.get("airport_info", {})
-    state["required_fields_to_book"] = response_json.get("Data", {}).get("PricedItineraries", [{}])[0].get("RequiredFieldsToBook", []) or ["Email","Title","ContactNumber"]
-    state["ask_for_passenger_details"] = True
-    state["payment_status"] = "not_started"
+    print("--------------------------confirm flight response-------------------", response.status_code)
     
     session = tool_context._invocation_context.session
+    session.state["fare_source_code"] = fare_source_code
     if isinstance(session, CustomSession):
         session.update_state()
 
-    if response_json.get("Success") == True:
+    if response.status_code in [200, 201]:
+        response_json = response.json()
+        state["airline_code_map"] = response_json.get("airline_info", {})
+        state["airport_code_map"] = response_json.get("airport_info", {})
+        state["required_fields_to_book"] = response_json.get("Data", {}).get("PricedItineraries", [{}])[0].get("RequiredFieldsToBook", []) or ["Email","Title","ContactNumber"]
+        state["ask_for_passenger_details"] = True
+        state["payment_status"] = "not_started"
         return response_json.get("Data", {}).get("PricedItineraries", [])[0]
     else:
-        return response_json
+        return {
+            "status": "error",
+            "message": "I cannot confirm the the flight, please try again later"
+        }
 
 def book_flight(tool_context: ToolContext):
     """
